@@ -16,7 +16,18 @@ plugins {
     alias(libs.plugins.buildConfig)
 }
 
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
 kotlin {
+    applyDefaultHierarchyTemplate {
+        common {
+            group("nonJs") {
+                withAndroidTarget()
+                withJvm()
+                withIos()
+            }
+        }
+    }
+
     androidTarget {
         //https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-test.html
         instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
@@ -27,17 +38,6 @@ kotlin {
     wasmJs {
         browser()
         binaries.executable()
-    }
-
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach {
-        it.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
-        }
     }
 
     sourceSets {
@@ -62,7 +62,7 @@ kotlin {
             implementation(libs.coil.network.ktor)
             implementation(libs.multiplatformSettings)
             implementation(libs.kotlinx.datetime)
-            implementation(libs.room.runtime)
+            // implementation(libs.room.runtime) // Moved to nonJsMain
             implementation(libs.kstore)
             implementation(libs.materialKolor)
         }
@@ -94,6 +94,13 @@ kotlin {
             implementation(libs.kstore.file)
         }
 
+        nonJsMain.dependencies {
+            implementation(libs.room.runtime)
+        }
+
+        wasmJsMain.dependencies {
+            implementation(libs.ktor.client.js)
+        }
     }
 }
 
