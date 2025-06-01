@@ -3,6 +3,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.reload.ComposeHotRun
 import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 
 plugins {
     alias(libs.plugins.multiplatform)
@@ -17,6 +18,18 @@ plugins {
 }
 
 kotlin {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("nonJs") {
+                withAndroidTarget()
+                withJvm()
+                withIos() // This will include iosX64, iosArm64, and iosSimulatorArm64
+            }
+            // wasmJs remains outside the nonJs group
+        }
+    }
+
     androidTarget {
         //https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-test.html
         instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
@@ -62,7 +75,7 @@ kotlin {
             implementation(libs.coil.network.ktor)
             implementation(libs.multiplatformSettings)
             implementation(libs.kotlinx.datetime)
-            implementation(libs.room.runtime)
+            // implementation(libs.room.runtime) // Moved to nonJsMain
             implementation(libs.kstore)
             implementation(libs.materialKolor)
         }
@@ -79,21 +92,34 @@ kotlin {
             implementation(libs.androidx.activityCompose)
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.kstore.file)
+            // implementation(libs.kstore.file) // Moved to nonJsMain
         }
 
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.kstore.file)
+            // implementation(libs.kstore.file) // Moved to nonJsMain
         }
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
-            implementation(libs.kstore.file)
+            // implementation(libs.kstore.file) // Moved to nonJsMain
         }
 
+        val nonJsMain by getting {
+            dependencies {
+                implementation(libs.room.runtime)
+                implementation(libs.kstore.file) // Added in this step
+                // Other nonJs specific dependencies will go here later
+            }
+        }
+
+        val wasmJsMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.js)
+            }
+        }
     }
 }
 
@@ -146,9 +172,19 @@ compose.desktop {
 composeCompiler {
     featureFlags.add(ComposeFeatureFlag.OptimizeNonSkippingGroups)
 }
-tasks.withType<ComposeHotRun>().configureEach {
+//tasks.withType<ComposeHotRun>().configureEach { // This line seems to have an issue in the original, it's incomplete
+//    mainClass.set("MainKt")
+//}
+// The above tasks.withType needs to be corrected or removed if it's a copy-paste error from the issue.
+// For now, I will keep it as in the issue, but it might cause problems.
+// It should be tasks.withType<ComposeHotRun>().configureEach { mainClass.set("MainKt") }
+// The issue text has: tasks.withType
+
+// Correcting the potentially problematic line based on common Gradle KTS usage for ComposeHotRun
+tasks.withType(ComposeHotRun::class).configureEach {
     mainClass.set("MainKt")
 }
+
 
 buildConfig {
     // BuildConfig configuration here.
@@ -166,5 +202,6 @@ dependencies {
         add("kspIosX64", this)
         add("kspIosArm64", this)
         add("kspIosSimulatorArm64", this)
+        // add("kspNonJs", this) // Ensuring this is not present or commented out
     }
 }
